@@ -75,17 +75,20 @@ def main(_):
     b5 = make_bias_variable([1024])
     c5 = tf.nn.relu(tf.matmul(s4_flat, w5) + b5)
     print(c5)
-    w6 = make_weight_variable([1024, 512])
-    b6 = make_bias_variable([512])
-    f6 = tf.nn.relu(tf.matmul(c5, w6) + b6)
-    print(f6)
 
     keep_prob = tf.placeholder(tf.float32)
-    f6_drop = tf.nn.dropout(f6, keep_prob)
+    c5_drop = tf.nn.dropout(c5, keep_prob)
 
-    w7 = make_weight_variable([512, 10])
+    w6 = make_weight_variable([1024, 100])
+    b6 = make_bias_variable([100])
+    f6 = tf.nn.relu(tf.matmul(c5_drop, w6) + b6)
+    print(f6)
+
+    # f6_drop = tf.nn.dropout(f6, keep_prob)
+
+    w7 = make_weight_variable([100, 10])
     b7 = make_bias_variable([10])
-    y_pre = tf.matmul(f6_drop, w7) + b7
+    y_pre = tf.matmul(f6, w7) + b7
     y = tf.nn.softmax(y_pre)
     print(y)
 
@@ -121,29 +124,25 @@ def main(_):
     print('Verify set {} records'.format(len(xs_verify)))
     print('Training set {} records'.format(len(xs)))
     print('Test set {} records'.format(len(xs_test)))
-    # mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
 
     print('Training...')
     for i in range(ITERATIONS):
-        # batch = mnist.train.next_batch(BATCH_SIZE)
-        # batch_xs = batch[0]
-        # batch_ys = batch[1]
         ids = random.sample(list(range(len(xs))), BATCH_SIZE)
         batch_xs = [xs[id] for id in ids]
         batch_ys = [ys[id] for id in ids]
         if (i + 1) % 100 == 0:
             acc = sess.run(accuracy, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
-            print(i, acc)
+            print(i + 1, acc)
         summary, _ = sess.run([merged, train_step],
                               feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
-        writer.add_summary(summary, i)
+        writer.add_summary(summary, i + 1)
         if (i + 1) % 1000 == 0:
             # verify trained model
             print('verify', sess.run(accuracy, feed_dict={x: xs_verify,
                                                           y_: ys_verify, keep_prob: 1.0}))
             argmax_y = tf.argmax(y, 1)
             argmax_ys = sess.run(argmax_y, feed_dict={x: xs_test, keep_prob: 1.0})
-            write_submission('{}_submission.csv'.format(i), argmax_ys)
+            write_submission('{}_submission.csv'.format(i + 1), argmax_ys)
     writer.close()
 
 if __name__ == '__main__':
