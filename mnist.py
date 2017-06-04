@@ -1,12 +1,11 @@
 import tensorflow as tf
-from tensorflow.examples.tutorials.mnist import input_data
 import random
 
 IMAGE_WIDTH = 28
 IMAGE_HEIGHT = 28
 VERIFY_RATIO = 0.05
 BATCH_SIZE = 50
-ITERATIONS = 20000
+ITERATIONS = 40000
 
 
 def get_train_data(file):
@@ -53,54 +52,83 @@ def make_bias_variable(shape):
 
 def main(_):
     # Create the model
-    x = tf.placeholder(tf.float32, [None, IMAGE_HEIGHT * IMAGE_WIDTH])
-    print(x)
-    x_ = tf.reshape(x, [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1])
-    print(x_)
-    w1 = make_weight_variable([5, 5, 1, 32])
-    b1 = make_bias_variable([32])
-    c1 = tf.nn.relu(tf.nn.conv2d(x_, w1, [1, 1, 1, 1], 'SAME') + b1)
-    print(c1)
-    s2 = tf.nn.max_pool(c1, [1, 2, 2, 1], [1, 2, 2, 1], 'SAME')
-    print(s2)
-    w3 = make_weight_variable([5, 5, 32, 64])
-    b3 = make_bias_variable([64])
-    c3 = tf.nn.relu(tf.nn.conv2d(s2, w3, [1, 1, 1, 1], 'VALID') + b3)
-    print(c3)
-    s4 = tf.nn.max_pool(c3, [1, 2, 2, 1], [1, 2, 2, 1], 'SAME')
-    print(s4)
-    s4_flat = tf.reshape(s4, [-1, 5 * 5 * 64])
-    print(s4_flat)
-    w5 = make_weight_variable([5 * 5 * 64, 1024])
-    b5 = make_bias_variable([1024])
-    c5 = tf.nn.relu(tf.matmul(s4_flat, w5) + b5)
-    print(c5)
+    with tf.name_scope('input'):
+        x = tf.placeholder(tf.float32, [None, IMAGE_HEIGHT * IMAGE_WIDTH])
+        print(x)
+        x_ = tf.reshape(x, [-1, IMAGE_HEIGHT, IMAGE_WIDTH, 1])
+        print(x_)
+    with tf.name_scope('c1'):
+        with tf.name_scope('weights'):
+            w1 = make_weight_variable([5, 5, 1, 32])
+        with tf.name_scope('bias'):
+            b1 = make_bias_variable([32])
+        c1 = tf.nn.relu(tf.nn.conv2d(x_, w1, [1, 1, 1, 1], 'SAME') + b1)
+        print(c1)
+    with tf.name_scope('s2'):
+        s2 = tf.nn.max_pool(c1, [1, 2, 2, 1], [1, 2, 2, 1], 'SAME')
+        print(s2)
+    with tf.name_scope('c3'):
+        with tf.name_scope('weights'):
+            w3 = make_weight_variable([5, 5, 32, 64])
+        with tf.name_scope('bias'):
+            b3 = make_bias_variable([64])
+        c3 = tf.nn.relu(tf.nn.conv2d(s2, w3, [1, 1, 1, 1], 'VALID') + b3)
+        print(c3)
+    with tf.name_scope('s4'):
+        s4 = tf.nn.max_pool(c3, [1, 2, 2, 1], [1, 2, 2, 1], 'SAME')
+        print(s4)
+        s4_flat = tf.reshape(s4, [-1, 5 * 5 * 64])
+        print(s4_flat)
+    with tf.name_scope('c5'):
+        with tf.name_scope('weights'):
+            w5 = make_weight_variable([5 * 5 * 64, 1024])
+        with tf.name_scope('bias'):
+            b5 = make_bias_variable([1024])
+        c5 = tf.nn.relu(tf.matmul(s4_flat, w5) + b5)
+        print(c5)
 
-    keep_prob = tf.placeholder(tf.float32)
-    c5_drop = tf.nn.dropout(c5, keep_prob)
+    with tf.name_scope('keep_prob'):
+        keep_prob = tf.placeholder(tf.float32)
 
-    w6 = make_weight_variable([1024, 100])
-    b6 = make_bias_variable([100])
-    f6 = tf.nn.relu(tf.matmul(c5_drop, w6) + b6)
-    print(f6)
+    # with tf.name_scope('c5_dropout'):
+    #     c5_drop = tf.nn.dropout(c5, keep_prob)
 
-    # f6_drop = tf.nn.dropout(f6, keep_prob)
+    with tf.name_scope('f6'):
+        with tf.name_scope('weights'):
+            w6 = make_weight_variable([1024, 512])
+        with tf.name_scope('bias'):
+            b6 = make_bias_variable([512])
+        f6 = tf.nn.relu(tf.matmul(c5, w6) + b6)
+        print(f6)
 
-    w7 = make_weight_variable([100, 10])
-    b7 = make_bias_variable([10])
-    y_pre = tf.matmul(f6, w7) + b7
-    y = tf.nn.softmax(y_pre)
-    print(y)
+    with tf.name_scope('f6_dropout'):
+        f6_drop = tf.nn.dropout(f6, keep_prob)
 
-    y_ = tf.placeholder(tf.float32, [None, 10])
+    with tf.name_scope('output'):
+        with tf.name_scope('weights'):
+            w7 = make_weight_variable([512, 10])
+        with tf.name_scope('bias'):
+            b7 = make_bias_variable([10])
+        y_pre = tf.matmul(f6_drop, w7) + b7
+        y = tf.nn.softmax(y_pre)
+        print(y)
 
-    cross_entropy = tf.reduce_mean(
-        tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_pre))
-    train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+    with tf.name_scope('output_expected'):
+        y_ = tf.placeholder(tf.float32, [None, 10])
+
+    with tf.name_scope('cross_entropy'):
+        cross_entropy = tf.reduce_mean(
+            tf.nn.softmax_cross_entropy_with_logits(labels=y_, logits=y_pre))
+    with tf.name_scope('train'):
+        train_steps = [None, None]
+        train_steps[0] = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+        train_steps[1] = tf.train.AdamOptimizer(1e-6).minimize(cross_entropy)
     tf.summary.scalar('cross_entropy', cross_entropy)
 
-    correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    with tf.name_scope('accuracy'):
+        with tf.name_scope('correct_prediction'):
+            correct_prediction = tf.equal(tf.argmax(y, 1), tf.argmax(y_, 1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     # tf.summary.scalar('accuracy', accuracy)
 
     sess = tf.InteractiveSession()
@@ -117,6 +145,10 @@ def main(_):
     with open('test.csv', 'r') as train_file:
        xs_test = get_test_data(train_file)
     verify_count = int(len(xs) * VERIFY_RATIO)
+    ids = list(range(len(xs)))
+    random.shuffle(ids)
+    xs = [xs[i] for i in ids]
+    ys = [ys[i] for i in ids]
     xs_verify = xs[0:verify_count]
     ys_verify = ys[0:verify_count]
     xs = xs[verify_count:]
@@ -133,6 +165,7 @@ def main(_):
         if (i + 1) % 100 == 0:
             acc = sess.run(accuracy, feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 1.0})
             print(i + 1, acc)
+        train_step = train_steps[0 if i < ITERATIONS / 2 else 1]
         summary, _ = sess.run([merged, train_step],
                               feed_dict={x: batch_xs, y_: batch_ys, keep_prob: 0.5})
         writer.add_summary(summary, i + 1)
